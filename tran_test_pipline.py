@@ -7,7 +7,7 @@ import numpy as np
 import random
 import os
 from dataload import CustomImageDataset
-from nets.models import BwCombinedInteractModel50
+from models import BwCombinedInteractModel50
 from sklearn.model_selection import StratifiedShuffleSplit
 
 num_classes = 4
