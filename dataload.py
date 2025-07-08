@@ -27,7 +27,6 @@ class CustomImageDataset(Dataset):
                         if self.transform:
                             image = self.transform(image)
                             if isinstance(image, torch.Tensor):
-                                # 将tensor移到CPU并固定内存
                                 image = image.cpu().pin_memory()
                         
                         self.preprocessed_data[image_path] = {
