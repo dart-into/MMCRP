@@ -121,73 +121,119 @@ class BwCombinedInteractModel50(nn.Module):
     
 
 def forward_with_weights(self, full_image, black_image, white_image, weights):
-    device = self.device
-    full_image = full_image.to(device)
-    black_image = black_image.to(device)
-    white_image = white_image.to(device)
+        device = self.device
+        full_image = full_image.to(device)
+        black_image = black_image.to(device)
+        white_image = white_image.to(device)
 
-    named_weights = {name: w for name, w in zip([n for n, _ in self.named_parameters()], weights)}
+        named_weights = {name: w for name, w in zip([n for n, _ in self.named_parameters()], weights)}
 
-    def functional_block(image, prefix):
-        x = F.conv2d(image, named_weights[f'{prefix}.conv1.weight'], named_weights.get(f'{prefix}.conv1.bias'), stride=2, padding=3)
-        x = F.batch_norm(x, running_mean=None, running_var=None,
-                         weight=named_weights.get(f'{prefix}.bn1.weight'), bias=named_weights.get(f'{prefix}.bn1.bias'), training=True)
-        x = F.relu(x)
-        x = F.max_pool2d(x, kernel_size=3, stride=2, padding=1)
+        def functional_block(image, prefix):
+            x = F.conv2d(image, named_weights[f'{prefix}.conv1.weight'], named_weights.get(f'{prefix}.conv1.bias'), stride=2, padding=3)
+            x = F.batch_norm(x, running_mean=None, running_var=None,
+                             weight=named_weights.get(f'{prefix}.bn1.weight'), bias=named_weights.get(f'{prefix}.bn1.bias'), training=True)
+            x = F.relu(x)
+            x = F.max_pool2d(x, kernel_size=3, stride=2, padding=1)
 
-        for layer_name in self.layer_names:
-            layer = getattr(self.full_image_model, layer_name)
-            for blk_idx, block in enumerate(layer):
-                identity = x
-                if hasattr(block, 'downsample') and block.downsample is not None:
-                    identity = F.conv2d(x, named_weights[f'{prefix}.{layer_name}.{blk_idx}.downsample.0.weight'],
-                                        named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.downsample.0.bias'),
-                                        stride=block.downsample[0].stride, padding=0)
-                    identity = F.batch_norm(identity, running_mean=None, running_var=None,
-                                             weight=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.downsample.1.weight'),
-                                             bias=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.downsample.1.bias'), training=True)
-                out = F.conv2d(x, named_weights[f'{prefix}.{layer_name}.{blk_idx}.conv1.weight'],
-                               named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.conv1.bias'), stride=block.conv1.stride, padding=block.conv1.padding)
-                out = F.batch_norm(out, running_mean=None, running_var=None,
-                                    weight=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn1.weight'),
-                                    bias=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn1.bias'), training=True)
-                out = F.relu(out)
-                out = F.conv2d(out, named_weights[f'{prefix}.{layer_name}.{blk_idx}.conv2.weight'],
-                               named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.conv2.bias'), stride=block.conv2.stride, padding=block.conv2.padding)
-                out = F.batch_norm(out, running_mean=None, running_var=None,
-                                    weight=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn2.weight'),
-                                    bias=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn2.bias'), training=True)
-                out = F.relu(out)
-                out = F.conv2d(out, named_weights[f'{prefix}.{layer_name}.{blk_idx}.conv3.weight'],
-                               named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.conv3.bias'), stride=block.conv3.stride, padding=block.conv3.padding)
-                out = F.batch_norm(out, running_mean=None, running_var=None,
-                                    weight=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn3.weight'),
-                                    bias=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn3.bias'), training=True)
-                x = F.relu(out + identity)
+            for layer_name in self.layer_names:
+                layer = getattr(self.full_image_model, layer_name)
+                for blk_idx, block in enumerate(layer):
+                    identity = x
+                    if hasattr(block, 'downsample') and block.downsample is not None:
+                        identity = F.conv2d(x, named_weights[f'{prefix}.{layer_name}.{blk_idx}.downsample.0.weight'],
+                                            named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.downsample.0.bias'),
+                                            stride=block.downsample[0].stride, padding=0)
+                        identity = F.batch_norm(identity, running_mean=None, running_var=None,
+                                                 weight=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.downsample.1.weight'),
+                                                 bias=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.downsample.1.bias'), training=True)
+                    out = F.conv2d(x, named_weights[f'{prefix}.{layer_name}.{blk_idx}.conv1.weight'],
+                                   named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.conv1.bias'), stride=block.conv1.stride, padding=block.conv1.padding)
+                    out = F.batch_norm(out, running_mean=None, running_var=None,
+                                        weight=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn1.weight'),
+                                        bias=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn1.bias'), training=True)
+                    out = F.relu(out)
+                    out = F.conv2d(out, named_weights[f'{prefix}.{layer_name}.{blk_idx}.conv2.weight'],
+                                   named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.conv2.bias'), stride=block.conv2.stride, padding=block.conv2.padding)
+                    out = F.batch_norm(out, running_mean=None, running_var=None,
+                                        weight=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn2.weight'),
+                                        bias=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn2.bias'), training=True)
+                    out = F.relu(out)
+                    out = F.conv2d(out, named_weights[f'{prefix}.{layer_name}.{blk_idx}.conv3.weight'],
+                                   named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.conv3.bias'), stride=block.conv3.stride, padding=block.conv3.padding)
+                    out = F.batch_norm(out, running_mean=None, running_var=None,
+                                        weight=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn3.weight'),
+                                        bias=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn3.bias'), training=True)
+                    x = F.relu(out + identity)
 
-                if layer_name == self.interaction_layer_name and blk_idx == len(layer) - 1:
-                    return x
-        return x
+                if layer_name == self.interaction_layer_name:
+                    nonlocal features_for_interaction
+                    features_for_interaction[prefix] = x
 
-    f = functional_block(full_image, 'full_image_model')
-    b = functional_block(black_image, 'black_image_model')
-    w = functional_block(white_image, 'white_image_model')
+            return x
+        
+        features_for_interaction = {}
 
-    f, b, w = self._feature_interaction(f, b, w)
+        f = functional_block(full_image, 'full_image_model')
+        b = functional_block(black_image, 'black_image_model')
+        w = functional_block(white_image, 'white_image_model')
 
-    def flatten_and_reduce(x, reduce_layer, prefix):
-        x = F.adaptive_avg_pool2d(x, (1, 1)).view(x.size(0), -1)
-        x = F.linear(x, named_weights[f'{prefix}.0.weight'], named_weights[f'{prefix}.0.bias'])
-        x = F.batch_norm(x, running_mean=None, running_var=None,
-                         weight=named_weights.get(f'{prefix}.1.weight'), bias=named_weights.get(f'{prefix}.1.bias'), training=True)
-        x = F.relu(x)
-        return x
+        f_inter, b_inter, w_inter = self._feature_interaction(
+            features_for_interaction.get('full_image_model'),
+            features_for_interaction.get('black_image_model'),
+            features_for_interaction.get('white_image_model')
+        )
 
-    f = flatten_and_reduce(f, self.reduce_dim_full, 'reduce_dim_full')
-    b = flatten_and_reduce(b, self.reduce_dim_black, 'reduce_dim_black')
-    w = flatten_and_reduce(w, self.reduce_dim_white, 'reduce_dim_white')
+        def continue_block(x_inter, image, prefix, start_layer):
+            x = x_inter
+            start_idx = self.layer_names.index(start_layer) + 1
+            for layer_name in self.layer_names[start_idx:]:
+                layer = getattr(self.full_image_model, layer_name)
+                for blk_idx, block in enumerate(layer):
+                    identity = x
+                    if hasattr(block, 'downsample') and block.downsample is not None:
+                        identity = F.conv2d(x, named_weights[f'{prefix}.{layer_name}.{blk_idx}.downsample.0.weight'],
+                                            named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.downsample.0.bias'),
+                                            stride=block.downsample[0].stride, padding=0)
+                        identity = F.batch_norm(identity, running_mean=None, running_var=None,
+                                                 weight=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.downsample.1.weight'),
+                                                 bias=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.downsample.1.bias'), training=True)
+                    out = F.conv2d(x, named_weights[f'{prefix}.{layer_name}.{blk_idx}.conv1.weight'],
+                                   named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.conv1.bias'), stride=block.conv1.stride, padding=block.conv1.padding)
+                    out = F.batch_norm(out, running_mean=None, running_var=None,
+                                        weight=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn1.weight'),
+                                        bias=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn1.bias'), training=True)
+                    out = F.relu(out)
+                    out = F.conv2d(out, named_weights[f'{prefix}.{layer_name}.{blk_idx}.conv2.weight'],
+                                   named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.conv2.bias'), stride=block.conv2.stride, padding=block.conv2.padding)
+                    out = F.batch_norm(out, running_mean=None, running_var=None,
+                                        weight=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn2.weight'),
+                                        bias=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn2.bias'), training=True)
+                    out = F.relu(out)
+                    out = F.conv2d(out, named_weights[f'{prefix}.{layer_name}.{blk_idx}.conv3.weight'],
+                                   named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.conv3.bias'), stride=block.conv3.stride, padding=block.conv3.padding)
+                    out = F.batch_norm(out, running_mean=None, running_var=None,
+                                        weight=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn3.weight'),
+                                        bias=named_weights.get(f'{prefix}.{layer_name}.{blk_idx}.bn3.bias'), training=True)
+                    x = F.relu(out + identity)
+            return x
 
-    combined_features = torch.cat([f, b, w], dim=1)
-    output = F.linear(combined_features, named_weights['classifier.weight'], named_weights['classifier.bias'])
+        f = continue_block(f_inter, full_image, 'full_image_model', self.interaction_layer_name)
+        b = continue_block(b_inter, black_image, 'black_image_model', self.interaction_layer_name)
+        w = continue_block(w_inter, white_image, 'white_image_model', self.interaction_layer_name)
 
-    return output
+        def flatten_and_reduce(x, prefix):
+            x = F.adaptive_avg_pool2d(x, (1, 1)).view(x.size(0), -1)
+            x = F.linear(x, named_weights[f'{prefix}.0.weight'], named_weights[f'{prefix}.0.bias'])
+            x = F.batch_norm(x, running_mean=None, running_var=None,
+                             weight=named_weights.get(f'{prefix}.1.weight'), bias=named_weights.get(f'{prefix}.1.bias'), training=True)
+            x = F.relu(x)
+            return x
+
+        f = flatten_and_reduce(f, 'reduce_dim_full')
+        b = flatten_and_reduce(b, 'reduce_dim_black')
+        w = flatten_and_reduce(w, 'reduce_dim_white')
+
+        combined_features = torch.cat([f, b, w], dim=1)
+        output = F.linear(combined_features, named_weights['classifier.weight'], named_weights['classifier.bias'])
+
+        return output
