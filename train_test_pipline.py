@@ -21,9 +21,9 @@ transform = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-dataset_full = CustomImageDataset("Dataset\chenpi_iphone/full", transform=transform)
-dataset_black = CustomImageDataset("Dataset\chenpi_iphone/black", transform=transform)
-dataset_white = CustomImageDataset("Dataset\chenpi_iphone/white", transform=transform)
+dataset_full = CustomImageDataset("Dataset path to crp_iphone/full", transform=transform)
+dataset_black = CustomImageDataset("Dataset path to crp_iphone/black", transform=transform)
+dataset_white = CustomImageDataset("Dataset path to crp_iphone/white", transform=transform)
 labels = [dataset_full.preprocessed_data[path]['label'] for path in dataset_full.samples]
 
 def seed_everything(seed):
